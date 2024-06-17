@@ -26,8 +26,16 @@ cloudinary = "^1.40.0"
 [tool.poetry.group.dev.dependencies]
 sphinx = "^7.3.7"
 
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.2.2"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 
+[tool.pytest.ini_options]
+addopts= "--doctest-modules"
+testpaths = ["tests",]
+pythonpath = "."

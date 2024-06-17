@@ -31,10 +31,12 @@ class DataBaseSessionManager:
         session = self._session_maker()
         try:
             yield session
-        except HTTPException as err:
-            raise err
+        # except HTTPException as err:
+        #     raise err
         except Exception as err:
+            logging.error(err)
             await session.rollback()
+            raise err
         finally:
             await session.close()
 
@@ -44,4 +46,7 @@ sessionmanager = DataBaseSessionManager(config.DB_URL)
 
 async def get_db():
     async with sessionmanager.session() as session:
-        yield session
+        try:
+            yield session
+        except Exception as err:
+            raise err

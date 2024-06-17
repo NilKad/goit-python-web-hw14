@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from src.models.models import Role
 
@@ -18,9 +18,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     avatar: str
     role: Role
-
-    class Config:
-        from_attributes: True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TokenSchema(BaseModel):
