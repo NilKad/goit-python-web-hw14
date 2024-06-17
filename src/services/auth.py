@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import pickle
 from typing import Optional
 
@@ -52,11 +52,11 @@ class Auth:
         """
         to_encode = data.copy()
         if expires_delta:
-            expire = datetime.utcnow() + timedelta(seconds=expires_delta)
+            expire = datetime.now(timezone.utc) + timedelta(seconds=expires_delta)
         else:
-            expire = datetime.utcnow() + timedelta(minutes=15)
+            expire = datetime.now(timezone.utc) + timedelta(minutes=15)
         to_encode.update(
-            {"iat": datetime.utcnow(), "exp": expire, "scope": "access_token"}
+            {"iat": datetime.now(timezone.utc), "exp": expire, "scope": "access_token"}
         )
         encoded_access_token = jwt.encode(
             to_encode, self.SECRET_KEY, algorithm=self.ALGORITHM
@@ -79,11 +79,11 @@ class Auth:
         """
         to_encode = data.copy()
         if expires_delta:
-            expire = datetime.utcnow() + timedelta(seconds=expires_delta)
+            expire = datetime.now(timezone.utc) + timedelta(seconds=expires_delta)
         else:
-            expire = datetime.utcnow() + timedelta(days=7)
+            expire = datetime.now(timezone.utc) + timedelta(days=7)
         to_encode.update(
-            {"iat": datetime.utcnow(), "exp": expire, "scope": "refresh_token"}
+            {"iat": datetime.now(timezone.utc), "exp": expire, "scope": "refresh_token"}
         )
         encoded_refresh_token = jwt.encode(
             to_encode, self.SECRET_KEY, algorithm=self.ALGORITHM
@@ -164,8 +164,8 @@ class Auth:
 
     def create_email_token(self, data: dict):
         to_encode = data.copy()
-        expire = datetime.utcnow() + timedelta(days=7)
-        to_encode.update({"iat": datetime.utcnow(), "exp": expire})
+        expire = datetime.now(timezone.utc) + timedelta(days=7)
+        to_encode.update({"iat": datetime.now(timezone.utc), "exp": expire})
         token = jwt.encode(to_encode, self.SECRET_KEY, algorithm=self.ALGORITHM)
         return token
 

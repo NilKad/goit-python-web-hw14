@@ -1,10 +1,11 @@
+from contextlib import asynccontextmanager
 from ipaddress import ip_address
 from pathlib import Path
-from fastapi import Depends, FastAPI, HTTPException
 
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi_limiter import FastAPILimiter
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_limiter import FastAPILimiter
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +20,25 @@ from src.routes import users as users_routes
 from src.config.config import config
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup event
+    r = await redis.Redis(
+        host=config.REDIS_HOST,
+        port=config.REDIS_PORT,
+        password=config.REDIS_PASSWORD,
+        db=0,
+    )
+    # r = await aioredis.create_redis_pool(
+    #     f"redis://{config.REDIS_HOST}:{config.REDIS_PORT}",
+    #     password=config.REDIS_PASSWORD,
+    #     db=0,
+    # )
+    await FastAPILimiter.init(r)
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 banned_ips = [
     ip_address("192.168.1.1"),
@@ -48,15 +67,15 @@ app.include_router(users_routes.router, prefix="/api")
 app.include_router(contacts_routes.router, prefix="/api")
 
 
-@app.on_event("startup")
-async def startup():
-    r = await redis.Redis(
-        host=config.REDIS_HOST,
-        port=config.REDIS_PORT,
-        password=config.REDIS_PASSWORD,
-        db=0,
-    )
-    await FastAPILimiter.init(r)
+# @app.on_event("startup")
+# async def startup():
+#     r = await redis.Redis(
+#         host=config.REDIS_HOST,
+#         port=config.REDIS_PORT,
+#         password=config.REDIS_PASSWORD,
+#         db=0,
+#     )
+#     await FastAPILimiter.init(r)
 
 
 @app.get("/")

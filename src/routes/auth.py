@@ -1,5 +1,4 @@
 import logging
-import select
 from typing import Optional
 from fastapi import (
     APIRouter,
@@ -7,13 +6,11 @@ from fastapi import (
     HTTPException,
     Depends,
     Request,
-    Response,
     status,
-    Path,
-    Query,
     Security,
 )
-from fastapi.responses import FileResponse
+
+# from fastapi.responses import FileResponse
 from fastapi.security import (
     HTTPAuthorizationCredentials,
     OAuth2PasswordRequestForm,
@@ -44,9 +41,8 @@ logger = logging.getLogger(__name__)
     "/signup",
     response_model=Optional[UserResponse],
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(RateLimiter(times=2, seconds=60))],
+    # dependencies=[Depends(RateLimiter(times=2, seconds=60))],
 )
-
 async def signup(
     body: UserSchema,
     bt: BackgroundTasks,
@@ -201,7 +197,7 @@ async def resend_request_email(
 ):
     """
     Endpoint to resend the email confirmation request for a specific email address.
-    
+
     :param email: The email address for which the confirmation request is being resent.
     :type email: str
     :param bt: An instance of the BackgroundTasks class for handling background tasks.
