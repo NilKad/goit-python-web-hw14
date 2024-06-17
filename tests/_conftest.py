@@ -1,28 +1,22 @@
 import asyncio
 import pytest
-import pytest_asyncio
 from fastapi.testclient import TestClient
-
-# from requests import session
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-
 
 from main import app
 from src.models.models import Base, User
 from src.database.db import get_db
 from src.services.auth import auth_service
 
+
 SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 
 engine = create_async_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
 )
-TestingSessionLocal = async_sessionmaker(
-    autocommit=False, autoflush=False, expire_on_commit=False, bind=engine
-)
+TestingSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 test_user = {
     "username": "deadpool",
@@ -53,25 +47,23 @@ def init_moddel_wrap():
     asyncio.run(init_model())
 
 
-# TODO test need delete
 @pytest.fixture(scope="module")
-def client():
-    # Dependency override
+async def async_session(init_model_wrap):
+    async with TestingSessionLocal() as session:
+        yield session
 
+
+@pytest.fixture(scope="module")
+def client(async_session):
     async def override_get_db():
-        session = TestingSessionLocal()
-        try:
+        async with async_session() as session:
             yield session
-        except Exception as err:
-            print(err)
-            await session.rollback()
-            raise err
-        finally:
-            await session.close()
 
     app.dependency_overrides[get_db] = override_get_db
 
-    yield TestClient(app)
+    with TestClient(app) as client:
+        yield client
+
 
 @pytest.fixture(scope="module")
 def user():

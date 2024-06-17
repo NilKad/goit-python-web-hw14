@@ -72,11 +72,3 @@ def client():
     app.dependency_overrides[get_db] = override_get_db
 
     yield TestClient(app)
-
-@pytest.fixture(scope="module")
-def user():
-    return {
-        "username": "kadulin",
-        "email": "kadulin@example.com",
-        "password": "22331144",
-    }
