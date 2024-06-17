@@ -43,7 +43,7 @@ def init_moddel_wrap():
                 username=test_user["username"],
                 email=test_user["email"],
                 password=password_hash,
-                is_verified=False,
+                is_verified=True,
                 avatar="https://res.cloudinary.com/dgknpebae/image/upload/c_fill,h_250,w_250/v1718230002/web21/kadulin%40gmail.com",
                 role="admin",
             )
@@ -53,6 +53,7 @@ def init_moddel_wrap():
     asyncio.run(init_model())
 
 
+# TODO test need delete
 @pytest.fixture(scope="module")
 def client():
     # Dependency override
@@ -64,6 +65,7 @@ def client():
         except Exception as err:
             print(err)
             await session.rollback()
+            raise err
         finally:
             await session.close()
 

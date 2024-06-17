@@ -119,11 +119,16 @@ async def login(
         - `repositories_users.update_token` for updating the user's token in the database.
     """
     user = await repositories_users.get_user_by_email(body.username, db)
+    print(f"{user.email=} {user.password=}")
     # user = db.query(User).filter(User.email == body.username).first()
     if user is None:
         logger.error("User not found")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email"
+        )
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Email not confirmed"
         )
     if not auth_service.verify_password(body.password, user.password):
         logger.error("password incorrect")
