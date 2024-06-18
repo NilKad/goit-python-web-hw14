@@ -80,7 +80,7 @@ app.include_router(contacts_routes.router, prefix="/api")
 
 @app.get("/")
 def index():
-    return {"message": "Contact aplication goit-python-web-hw13-p1"}
+    return {"message": "Contact aplication goit-python-web-hw14"}
 
 
 @app.get("/api/healthchecker")
@@ -94,7 +94,7 @@ async def healthchecker(db: AsyncSession = Depends(get_db)):
                 status_code=500, detail="Database is not configured correctly"
             )
         return {
-            "message": "Welcome to FastAPI! HealthChecker goit-python-web-hw13-p1 - OK"
+            "message": "Welcome to FastAPI! HealthChecker goit-python-web-hw14 - OK"
         }
     except Exception as e:
         print(e)

@@ -49,4 +49,5 @@ async def get_db():
         try:
             yield session
         except Exception as err:
+            print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
             raise err

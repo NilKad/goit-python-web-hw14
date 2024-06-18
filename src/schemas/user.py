@@ -29,3 +29,6 @@ class TokenSchema(BaseModel):
 
 class RequestEmail(BaseModel):
     email: EmailStr
+    
+class ResetPasswordSchema(BaseModel):
+    password: str = Field(min_length=6, max_length=8)

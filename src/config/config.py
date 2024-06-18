@@ -1,10 +1,27 @@
 from pydantic import ConfigDict, field_validator, EmailStr
 from pydantic_settings import BaseSettings
+import toml
+
+# Путь к вашему файлу pyproject.toml
+pyproject_path = "pyproject.toml"
+
+# Чтение файла
+with open(pyproject_path, "r") as file:
+    pyproject_data = toml.load(file)
+
+# Извлечение значения name из секции [tool.poetry]
+project_name = pyproject_data.get("tool", {}).get("poetry", {}).get("name")
+
+if project_name:
+    PROJECT_NAME: str = project_name
+else:
+    raise ValueError("Project name not found in pyproject.toml")
 
 
 class Settings(BaseSettings):
+    PROJECT_NAME: str = PROJECT_NAME
     DB_URL: str = (
-        "postgresql+asyncpg://postgres:password@localhost:5432/goit-python-web-hw13-p1"
+        "postgresql+asyncpg://postgres:password@localhost:5432/goit-python-web-hw00"
     )
     SECRET_KEY_JWT: str = "12!@34#$56%^78&*90()"
     ALGORITHM: str = "HS256"

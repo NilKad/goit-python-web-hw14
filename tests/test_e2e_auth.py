@@ -84,6 +84,23 @@ async def test_login(client):
     assert "refresh_token" in data
     assert "token_type" in data
 
+def test_wrong_password(client):
+    response = client.post(
+        "/api/auth/login",
+        data={
+            "username": user_data.get("email"),
+            "password": user_data.get("password"),
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    print(f"{data=}")
+    assert data["token_type"] == "bearer"
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert "token_type" in data
+
 
 # def test_login_user2(client, session, user):
 #     print(f"{user=}")

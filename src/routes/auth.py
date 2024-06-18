@@ -20,12 +20,12 @@ from fastapi_limiter.depends import RateLimiter
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.services.email import send_email
+from src.services.email import send_confirm_email, send_email_reset_password
 from src.database.db import get_db
 
 # from src.entity.models import Todo
 from src.repositories import users as repositories_users
-from src.schemas.user import RequestEmail, UserSchema, UserResponse, TokenSchema
+from src.schemas.user import RequestEmail, ResetPasswordSchema, UserSchema, UserResponse, TokenSchema
 from src.services.auth import auth_service
 
 
@@ -74,6 +74,7 @@ async def signup(
         - :class:`RateLimiter`: A rate limiter dependency that limits the number of requests to this endpoint within a
           specified time period.
     """
+
     exist_user = await repositories_users.get_user_by_email(body.email, db)
     if exist_user:
         raise HTTPException(
@@ -81,13 +82,15 @@ async def signup(
         )
     body.password = auth_service.get_password_hash(body.password)
     new_user = await repositories_users.add_user(body, db)
-    bt.add_task(send_email, new_user.email, new_user.username, str(request.base_url))
-
-    # print()
-    # new_user = User(
-    #     email=body.username, password=hash_handler.get_password_hash(body.password)
+    email_params = {
+        "email": new_user.email,
+        "username": new_user.username,
+        "host": str(request.base_url),
+    }
+    bt.add_task(send_confirm_email, **email_params)
+    # bt.add_task(
+    #     send_confirm_email, new_user.email, new_user.username, str(request.base_url)
     # )
-
     return new_user
 
 
@@ -118,6 +121,8 @@ async def login(
         - `auth_service.create_refresh_token` for generating the refresh token.
         - `repositories_users.update_token` for updating the user's token in the database.
     """
+    # print("~~~~~~~~~~~~~~~~~~~~~  SIGNUP ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
     user = await repositories_users.get_user_by_email(body.username, db)
     print(f"{user.email=} {user.password=}")
     # user = db.query(User).filter(User.email == body.username).first()
@@ -193,11 +198,76 @@ async def refresh_token(
     }
 
 
-@router.get("/request_email/{email}")
-async def resend_request_email(
-    email: str,
-    bt: BackgroundTasks,
+@router.post("/request_reset_password")
+async def request_email(
+    body: RequestEmail,
     request: Request,
+    bt: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+
+    user = await repositories_users.get_user_by_email(body.email, db)
+    if user:
+        bt.add_task(
+            send_email_reset_password, user.email, user.username, request.base_url
+        )
+    return {"message": "If you register, you send an email."}
+
+
+@router.get("/reset_password/{token}")
+async def reset_password(token: str, db: AsyncSession = Depends(get_db)):
+    email = await auth_service.get_email_from_token(token)
+    user = await repositories_users.get_user_by_email(email, db)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Verification error"
+        )
+    await repositories_users.confirm_email(email, db)
+    print("ok confirmed")
+    return {"message": "Email confirmed"}
+
+
+@router.post("/new_password")
+async def set_new_password(
+    token: str, body: ResetPasswordSchema, request: Request, db: AsyncSession = Depends(get_db)
+):
+    email = await auth_service.get_email_from_token(token)
+    user = await repositories_users.get_user_by_email(email, db)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Verification error"
+        )
+    await repositories_users.confirm_email(email, db)
+    print("ok confirmed")
+    return {"message": "Email confirmed"}
+
+
+@router.get("/confirmed_email/{token}")
+async def confirmed_email(token: str, db: AsyncSession = Depends(get_db)):
+
+    email = await auth_service.get_email_from_token(token)
+    user = await repositories_users.get_user_by_email(email, db)
+    print(user)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Verification error"
+        )
+    if user.is_verified:
+        return {"message": "Your email is already confirmed"}
+    await repositories_users.confirm_email(email, db)
+    print("ok confirmed")
+    return {"message": "Email confirmed"}
+
+
+@router.post(
+    "/resend_confirm_email/{email}"
+    # TODO : add status code
+    # TODO : add response model
+)
+async def resend_confirm_email(
+    body: RequestEmail,
+    request: Request,
+    bt: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -214,70 +284,16 @@ async def resend_request_email(
     :return: A message indicating the status of the email confirmation request.
     :rtype: dict
     """
-    user = await repositories_users.get_user_by_email(email, db)
-
-    if user.is_verified:
-        return {"message": "Your email is already confirmed"}
-    if user:
-        bt.add_task(send_email, user.email, user.username, request.base_url)
-    return {"message": "Check your email for confirmation."}
-
-
-@router.post("/request_email")
-async def request_email(
-    body: RequestEmail,
-    bt: BackgroundTasks,
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Endpoint to request an email confirmation for a specific email address.
-
-    :param body: The request body containing the email address.
-    :type body: RequestEmail
-    :param bt: An instance of the BackgroundTasks class for handling background tasks.
-    :type bt: BackgroundTasks
-    :param request: The incoming request object.
-    :type request: Request
-    :param db: An instance of the AsyncSession class for asynchronous database operations.
-    :type db: AsyncSession
-    :return: A dictionary containing a message indicating the status of the email confirmation request.
-    :rtype: dict
-    """
     user = await repositories_users.get_user_by_email(body.email, db)
 
     if user.is_verified:
         return {"message": "Your email is already confirmed"}
     if user:
-        bt.add_task(send_email, user.email, user.username, request.base_url)
-    return {"message": "Check your email for confirmation."}
-
-
-@router.get("/confirmed_email/{token}")
-async def confirmed_email(token: str, db: AsyncSession = Depends(get_db)):
-    """
-    Confirms the email of a user by verifying the token provided in the URL.
-
-    :param token: The token received in the URL to confirm the email.
-    :type token: str
-    :param db: An instance of the AsyncSession class for accessing the database.
-    :type db: AsyncSession
-    :return: A dictionary with a message indicating the status of the email confirmation.
-    :rtype: dict
-    :raises HTTPException: with status code 400 and detail "Verification error" if the user is not found.
-    """
-    email = await auth_service.get_email_from_token(token)
-    user = await repositories_users.get_user_by_email(email, db)
-    print(user)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Verification error"
+        # bt.add_task(send_email, user.email, user.username, request.base_url)
+        bt.add_task(
+            send_confirm_email, user.email, user.username, str(request.base_url)
         )
-    if user.is_verified:
-        return {"message": "Your email is already confirmed"}
-    await repositories_users.confirm_email(email, db)
-    print("ok confirmed")
-    return {"message": "Email confirmed"}
+    return {"message": "Check your email for confirmation."}
 
 
 # @router.get("/{username}")

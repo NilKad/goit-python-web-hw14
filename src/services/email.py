@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
@@ -20,34 +21,54 @@ conf = ConnectionConfig(
     VALIDATE_CERTS=True,
     TEMPLATE_FOLDER=Path(__file__).parent / "templates",
 )
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
-async def send_email(email: EmailStr, username: str, host: str):
-    """
-    Asynchronously sends an email to the specified email address for verification.
-
-    :param email: The email address to send the verification email to.
-    :type email: EmailStr
-    :param username: The username associated with the email address.
-    :type username: str
-    :param host: The host URL for generating the verification link.
-    :type host: str
-    :return: None
-    """
+# async def send_email(*args, **kwargs):
+async def send_email(email, username, link, templates, host, *rest):
+    # email, username, link, templates, *rest = kwargs.values()
+    # print(f"-----____________________!!!!kwargs: {kwargs=}")
+    # print(f"{email=} {username=} {link=} {templates=} {host=}")
     try:
-        token_verification = auth_service.create_email_token({"sub": email})
+        # token_verification = auth_service.create_email_token({"sub": email})
         message = MessageSchema(
             subject="Confirm your email ",
             recipients=[email],
             template_body={
-                "host": host,
+                "link": link,
                 "username": username,
-                "token": token_verification,
+                # "link": link,
+                # "token": token_verification,
             },
             subtype=MessageType.html,
         )
-
+        print(f"{conf=}")
         fm = FastMail(conf)
-        await fm.send_message(message, template_name="verify_email.html")
+        await fm.send_message(message, template_name=templates)
+        logging.info(f"Message sent to {email=}")
     except ConnectionErrors as err:
-        print(err)
+        logging.error(f"Failed to send email to {email}: {err}")
+        # print(err)
+
+
+# TODO : сделать функцию подтверждения email
+async def send_confirm_email(**kwargs):
+    token_verification = auth_service.create_email_token({"sub": kwargs.get("email")})
+    kwargs["link"] = (
+        f'{kwargs.get("host")}api/auth/confirmed_email/{token_verification}'
+    )
+    kwargs["templates"] = "verify_email.html"
+    print(f"-----____________________!!!!kwargs: {kwargs=}")
+    await send_email(**kwargs)
+
+
+# TODO : сделать функцию отправки на email ссылки для сброса пароля
+async def send_email_reset_password(**kwargs):
+    token_verification = auth_service.create_email_token({"sub": kwargs.get("email")})
+    kwargs["link"] = (
+        f'{kwargs.get("host")}api/auth/confirmed_email/{token_verification}'
+    )
+    kwargs["templates"] = "verify_email.html"
+    print(f"-----____________________!!!!kwargs: {kwargs=}")
+    await send_email(**kwargs)
